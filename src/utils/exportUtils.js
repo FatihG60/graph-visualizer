@@ -1,4 +1,4 @@
-import { toPng } from 'html-to-image';
+import { toPng, toSvg } from 'html-to-image';
 
 /**
  * Downloads current nodes and edges as a JSON file.
@@ -55,7 +55,6 @@ export async function exportToPng(
       quality: 1.0,
       cacheBust: true,
       filter: (domNode) => {
-        // Exclude controls and minimap from PNG snapshot
         if (
           domNode.classList &&
           (domNode.classList.contains('react-flow__controls') ||
@@ -75,5 +74,42 @@ export async function exportToPng(
     downloadAnchor.remove();
   } catch (err) {
     console.error('PNG dışa aktarma hatası:', err);
+  }
+}
+
+/**
+ * Downloads the React Flow canvas viewport as a vector SVG file.
+ */
+export async function exportToSvg(
+  elementSelector = '.react-flow',
+  filename = 'graf-vektorel.svg',
+  bgColor = '#0b0f19'
+) {
+  const node = document.querySelector(elementSelector);
+  if (!node) return;
+
+  try {
+    const dataUrl = await toSvg(node, {
+      backgroundColor: bgColor,
+      filter: (domNode) => {
+        if (
+          domNode.classList &&
+          (domNode.classList.contains('react-flow__controls') ||
+            domNode.classList.contains('react-flow__minimap'))
+        ) {
+          return false;
+        }
+        return true;
+      }
+    });
+
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataUrl);
+    downloadAnchor.setAttribute('download', filename);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  } catch (err) {
+    console.error('SVG dışa aktarma hatası:', err);
   }
 }

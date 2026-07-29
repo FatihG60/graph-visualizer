@@ -14,7 +14,9 @@ import {
   Image,
   Upload,
   Sun,
-  Moon
+  Moon,
+  Code2,
+  Layers
 } from 'lucide-react';
 
 const LAYOUT_OPTIONS = [
@@ -35,6 +37,8 @@ const HeaderBar = ({
   onResetView,
   onExportJson,
   onExportPng,
+  onExportSvg,
+  onOpenDiagramModal,
   onFileUpload,
   theme,
   onToggleTheme,
@@ -104,7 +108,7 @@ const HeaderBar = ({
       {/* Search & Actions */}
       <div className="flex items-center gap-2 xl:gap-3">
         {/* Real-time Search Box */}
-        <div className="relative w-36 xl:w-48">
+        <div className="relative w-32 xl:w-44">
           <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isLight ? 'text-slate-400' : 'text-slate-400'}`} />
           <input
             type="text"
@@ -172,6 +176,15 @@ const HeaderBar = ({
           <Plus size={14} /> Düğüm
         </button>
 
+        {/* Mermaid / PlantUML Code Export Button */}
+        <button
+          onClick={onOpenDiagramModal}
+          title="Mermaid.js / PlantUML Diyagram Kodu Al"
+          className="px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 border border-purple-500/30 text-xs font-medium transition-all flex items-center gap-1.5 shadow-sm"
+        >
+          <Code2 size={14} /> Diyagram Kodu
+        </button>
+
         {/* Export JSON Button */}
         <button
           onClick={onExportJson}
@@ -183,15 +196,26 @@ const HeaderBar = ({
           <Download size={15} /> <span className="hidden xl:inline">JSON</span>
         </button>
 
-        {/* Export PNG Canvas Button */}
+        {/* Export PNG Button */}
         <button
           onClick={onExportPng}
           title="Grafı PNG Görsel Olarak İndir"
-          className={`p-2 rounded-xl border transition-colors flex items-center gap-1 text-xs text-purple-500 ${
+          className={`p-2 rounded-xl border transition-colors flex items-center gap-1 text-xs text-blue-500 ${
             isLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-200' : 'bg-slate-900 hover:bg-slate-800 border-slate-800'
           }`}
         >
           <Image size={15} /> <span className="hidden xl:inline">PNG</span>
+        </button>
+
+        {/* Export SVG Button */}
+        <button
+          onClick={onExportSvg}
+          title="Grafı Vektörel SVG Olarak İndir"
+          className={`p-2 rounded-xl border transition-colors flex items-center gap-1 text-xs text-pink-500 ${
+            isLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-200' : 'bg-slate-900 hover:bg-slate-800 border-slate-800'
+          }`}
+        >
+          <Layers size={15} /> <span className="hidden xl:inline">SVG</span>
         </button>
 
         {/* Reset View Button */}

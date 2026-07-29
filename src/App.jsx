@@ -18,6 +18,7 @@ import HeaderBar from './components/HeaderBar';
 import NodeDetailDrawer from './components/NodeDetailDrawer';
 import JsonEditorModal from './components/JsonEditorModal';
 import AddNodeModal from './components/AddNodeModal';
+import DiagramModal from './components/DiagramModal';
 
 import { parseJsonToGraph } from './utils/jsonToGraph';
 import {
@@ -26,7 +27,7 @@ import {
   getGridLayout,
   getOrganicLayout
 } from './utils/layoutUtils';
-import { exportToJson, exportToPng } from './utils/exportUtils';
+import { exportToJson, exportToPng, exportToSvg } from './utils/exportUtils';
 import { PRESETS } from './utils/presets';
 
 const nodeTypes = {
@@ -44,6 +45,7 @@ function GraphCanvas() {
   // Modals
   const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
   const [isAddNodeModalOpen, setIsAddNodeModalOpen] = useState(false);
+  const [isDiagramModalOpen, setIsDiagramModalOpen] = useState(false);
 
   const { fitView, setCenter } = useReactFlow();
   const fileInputRef = React.useRef(null);
@@ -252,6 +254,15 @@ function GraphCanvas() {
     exportToPng('.react-flow', `graf-gorseli-${Date.now()}.png`, bg);
   };
 
+  const handleExportSvg = () => {
+    if (nodes.length === 0) {
+      alert('İndirilecek graf bulunmuyor.');
+      return;
+    }
+    const bg = theme === 'light' ? '#f8fafc' : '#0b0f19';
+    exportToSvg('.react-flow', `graf-vektorel-${Date.now()}.svg`, bg);
+  };
+
   // Search Filter Highlights & Theme Injection
   const processedNodes = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -300,6 +311,8 @@ function GraphCanvas() {
         onResetView={() => fitView({ padding: 0.2, duration: 400 })}
         onExportJson={handleExportJson}
         onExportPng={handleExportPng}
+        onExportSvg={handleExportSvg}
+        onOpenDiagramModal={() => setIsDiagramModalOpen(true)}
         onFileUpload={handleDirectFileUpload}
         theme={theme}
         onToggleTheme={handleToggleTheme}
@@ -431,6 +444,14 @@ function GraphCanvas() {
         onClose={() => setIsAddNodeModalOpen(false)}
         existingNodes={nodes}
         onAddNode={handleAddNode}
+        theme={theme}
+      />
+
+      <DiagramModal
+        isOpen={isDiagramModalOpen}
+        onClose={() => setIsDiagramModalOpen(false)}
+        nodes={nodes}
+        edges={edges}
         theme={theme}
       />
     </div>
