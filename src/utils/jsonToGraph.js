@@ -18,8 +18,10 @@ const DEFAULT_LABEL_BG_STYLE = { fill: '#0f172a', rx: 6, ry: 6 };
 
 /**
  * Converts arbitrary JSON into nodes and edges for React Flow.
+ * @param {Object|Array|string} jsonInput
+ * @param {string} matchKey - Optional key name to match nodes sharing the same value
  */
-export function parseJsonToGraph(jsonInput) {
+export function parseJsonToGraph(jsonInput, matchKey = '') {
   if (!jsonInput) return { nodes: [], edges: [] };
 
   let data;
@@ -28,6 +30,8 @@ export function parseJsonToGraph(jsonInput) {
   } catch (err) {
     throw new Error('Geçersiz JSON Formatı: ' + err.message);
   }
+
+  const cleanMatchKey = matchKey ? matchKey.trim().toLowerCase() : '';
 
   // Case 1: Standard Graph Object with explicit { nodes: [...], edges: [...] }
   if (data && Array.isArray(data.nodes)) {
@@ -48,7 +52,7 @@ export function parseJsonToGraph(jsonInput) {
       }
     }));
 
-    const edges = (data.edges || []).map((e, idx) => ({
+    let edges = (data.edges || []).map((e, idx) => ({
       id: String(e.id || `edge_${idx}`),
       source: String(e.source),
       target: String(e.target),
@@ -61,10 +65,51 @@ export function parseJsonToGraph(jsonInput) {
       markerEnd: { type: 'arrowclosed', color: e.color || '#475569' }
     }));
 
+    // If matchKey is specified, also build edges based on column value matching!
+    if (cleanMatchKey) {
+      const columnEdges = buildEdgesByColumnMatch(nodes, cleanMatchKey);
+      edges = [...edges, ...columnEdges];
+    }
+
     return { nodes, edges };
   }
 
-  // Case 2: Arbitrary Nested JSON Object / Array Parser (Tree to Graph Converter)
+  // Case 2: Array of items (e.g. list of objects)
+  if (Array.isArray(data)) {
+    const nodes = data.map((item, idx) => {
+      const nodeId = String(item.id || item.ID || `node_${idx + 1}`);
+      const label = item.name || item.label || item.title || item.isim || `Öğe ${idx + 1}`;
+      const subtitle = item.type || item.category || item.dept || item.role || '';
+
+      return {
+        id: nodeId,
+        type: 'customNode',
+        position: { x: (idx % 4) * 230, y: Math.floor(idx / 4) * 160 },
+        data: {
+          label,
+          subtitle,
+          icon: 'box',
+          bgColor: getRandomColor(idx),
+          status: 'active',
+          type: item.type || 'Öğe',
+          shape: 'rectangle',
+          details: item,
+          rawJson: item
+        }
+      };
+    });
+
+    let edges = [];
+
+    // If matchKey is provided, match items sharing the same column value or parentId link
+    if (cleanMatchKey) {
+      edges = buildEdgesByColumnMatch(nodes, cleanMatchKey);
+    }
+
+    return { nodes, edges };
+  }
+
+  // Case 3: Arbitrary Nested JSON Object (Tree Parser)
   const nodes = [];
   const edges = [];
   let nodeIdCounter = 1;
@@ -74,7 +119,6 @@ export function parseJsonToGraph(jsonInput) {
     const color = getRandomColor(depth);
 
     if (value === null || typeof value !== 'object') {
-      // Primitive value node
       nodes.push({
         id: currentId,
         type: 'customNode',
@@ -91,7 +135,6 @@ export function parseJsonToGraph(jsonInput) {
         }
       });
     } else if (Array.isArray(value)) {
-      // Array node
       nodes.push({
         id: currentId,
         type: 'customNode',
@@ -109,10 +152,9 @@ export function parseJsonToGraph(jsonInput) {
       });
 
       value.forEach((item, index) => {
-        const childId = processValue(`[${index}]`, item, currentId, depth + 1);
+        processValue(`[${index}]`, item, currentId, depth + 1);
       });
     } else {
-      // Object node
       const keysCount = Object.keys(value).length;
       nodes.push({
         id: currentId,
@@ -135,7 +177,8 @@ export function parseJsonToGraph(jsonInput) {
       });
     }
 
-    if (parentId) {
+    // Default tree hierarchy edge if no matchKey, OR parent-child link
+    if (parentId && !cleanMatchKey) {
       edges.push({
         id: `e_${parentId}_${currentId}`,
         source: parentId,
@@ -154,5 +197,84 @@ export function parseJsonToGraph(jsonInput) {
   }
 
   processValue('Kök (Root)', data, null, 0);
+
+  if (cleanMatchKey) {
+    const columnEdges = buildEdgesByColumnMatch(nodes, cleanMatchKey);
+    return { nodes, edges: columnEdges };
+  }
+
   return { nodes, edges };
+}
+
+/**
+ * Builds edges by matching values of a specific column/key across nodes.
+ */
+function buildEdgesByColumnMatch(nodes, matchKey) {
+  const edges = [];
+  const groups = new Map(); // key = matching value, value = array of nodeIds
+  let edgeCounter = 1;
+
+  nodes.forEach((node) => {
+    const details = node.data?.details || node.data?.rawJson || {};
+
+    // Find the property value ignoring case
+    let targetValue = null;
+    Object.keys(details).forEach((k) => {
+      if (k.toLowerCase() === matchKey) {
+        targetValue = details[k];
+      }
+    });
+
+    if (targetValue !== null && targetValue !== undefined && targetValue !== '') {
+      const stringifiedVal = String(targetValue);
+
+      // Check parent-child ID matching (e.g. if node.id === targetValue)
+      const parentNode = nodes.find((n) => n.id === stringifiedVal);
+      if (parentNode && parentNode.id !== node.id) {
+        // Direct parent ID match!
+        edges.push({
+          id: `e_match_${edgeCounter++}`,
+          source: parentNode.id,
+          target: node.id,
+          label: `${matchKey}: ${stringifiedVal}`,
+          animated: true,
+          style: { stroke: '#3b82f6', strokeWidth: 2 },
+          labelStyle: DEFAULT_LABEL_STYLE,
+          labelBgStyle: DEFAULT_LABEL_BG_STYLE,
+          labelBgPadding: [6, 4],
+          markerEnd: { type: 'arrowclosed', color: '#3b82f6' }
+        });
+      } else {
+        // Group by value
+        if (!groups.has(stringifiedVal)) {
+          groups.set(stringifiedVal, []);
+        }
+        groups.get(stringifiedVal).push(node.id);
+      }
+    }
+  });
+
+  // Connect nodes sharing the same column value in a group
+  groups.forEach((nodeIds, val) => {
+    if (nodeIds.length > 1) {
+      for (let i = 0; i < nodeIds.length - 1; i++) {
+        const sourceId = nodeIds[i];
+        const targetId = nodeIds[i + 1];
+        edges.push({
+          id: `e_match_grp_${edgeCounter++}`,
+          source: sourceId,
+          target: targetId,
+          label: `${matchKey}: ${val}`,
+          animated: true,
+          style: { stroke: '#8b5cf6', strokeWidth: 2 },
+          labelStyle: DEFAULT_LABEL_STYLE,
+          labelBgStyle: DEFAULT_LABEL_BG_STYLE,
+          labelBgPadding: [6, 4],
+          markerEnd: { type: 'arrowclosed', color: '#8b5cf6' }
+        });
+      }
+    }
+  });
+
+  return edges;
 }

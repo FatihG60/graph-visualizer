@@ -6,7 +6,8 @@ import {
   Sparkles,
   FileText,
   Upload,
-  FileUp
+  FileUp,
+  Link2
 } from 'lucide-react';
 import { PRESETS } from '../utils/presets';
 
@@ -14,6 +15,7 @@ const JsonEditorModal = ({ isOpen, onClose, onApplyJson, theme = 'dark' }) => {
   const [jsonText, setJsonText] = useState(
     JSON.stringify(PRESETS[0].data, null, 2)
   );
+  const [matchKey, setMatchKey] = useState('');
   const [error, setError] = useState(null);
   const [activePreset, setActivePreset] = useState(PRESETS[0].id);
   const [isDragging, setIsDragging] = useState(false);
@@ -75,7 +77,7 @@ const JsonEditorModal = ({ isOpen, onClose, onApplyJson, theme = 'dark' }) => {
   const handleSubmit = () => {
     try {
       const parsed = JSON.parse(jsonText);
-      onApplyJson(parsed);
+      onApplyJson(parsed, matchKey);
       onClose();
     } catch (err) {
       setError('Geçersiz JSON formatı: ' + err.message);
@@ -98,7 +100,7 @@ const JsonEditorModal = ({ isOpen, onClose, onApplyJson, theme = 'dark' }) => {
             <div>
               <h2 className="text-lg font-bold m-0">JSON Veri Yükle & Düzenle</h2>
               <p className={`text-xs m-0 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                JSON dosyanızı yükleyin, yazın veya hazır şablonlardan seçin
+                JSON dosyanızı yükleyin, yazın veya özel ilişki kolonuna göre eşleştirin
               </p>
             </div>
           </div>
@@ -163,6 +165,37 @@ const JsonEditorModal = ({ isOpen, onClose, onApplyJson, theme = 'dark' }) => {
               </button>
             ))}
           </div>
+
+          {/* Relationship Matching Column Input */}
+          <div className="pt-2 border-t border-slate-700/40">
+            <label className={`block text-xs font-medium mb-1 flex items-center gap-1.5 ${
+              isLight ? 'text-slate-700' : 'text-slate-300'
+            }`}>
+              <Link2 size={14} className="text-purple-500" /> Özel İlişki Eşleştirme Kolonu (Opsiyonel):
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Örn: category, dept, parentId, type, company (Boş bırakılırsa varsayılan mod kullanılır)"
+                value={matchKey}
+                onChange={(e) => setMatchKey(e.target.value)}
+                className={`flex-1 px-3 py-1.5 border rounded-xl text-xs focus:outline-none focus:border-blue-500 ${
+                  isLight
+                    ? 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                    : 'bg-slate-900 border-slate-800 text-white placeholder-slate-500'
+                }`}
+              />
+              {matchKey && (
+                <button
+                  type="button"
+                  onClick={() => setMatchKey('')}
+                  className="px-2 py-1 text-[11px] rounded-lg bg-slate-800 text-slate-400 hover:text-white"
+                >
+                  Temizle
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Textarea Code Editor + Drag & Drop Area */}
@@ -205,7 +238,7 @@ const JsonEditorModal = ({ isOpen, onClose, onApplyJson, theme = 'dark' }) => {
                 ? 'bg-white border-slate-300 text-slate-900'
                 : 'bg-slate-900/90 border-slate-800 text-emerald-400'
             }`}
-            rows={12}
+            rows={10}
           />
         </div>
 

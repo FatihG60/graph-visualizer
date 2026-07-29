@@ -214,9 +214,9 @@ function GraphCanvas() {
     }, 100);
   }, [setNodes, setEdges, handleFocusNode, theme]);
 
-  // Apply JSON Input
-  const handleApplyJson = (rawJson) => {
-    const graphData = parseJsonToGraph(rawJson);
+  // Apply JSON Input with optional column-matching key
+  const handleApplyJson = (rawJson, matchKey = '') => {
+    const graphData = parseJsonToGraph(rawJson, matchKey);
     loadGraphData(graphData, currentLayout);
   };
 
