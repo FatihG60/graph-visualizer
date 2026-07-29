@@ -19,7 +19,6 @@ import NodeDetailDrawer from './components/NodeDetailDrawer';
 import JsonEditorModal from './components/JsonEditorModal';
 import AddNodeModal from './components/AddNodeModal';
 import DiagramModal from './components/DiagramModal';
-import ClusterGroupOverlay from './components/ClusterGroupOverlay';
 
 import { parseJsonToGraph } from './utils/jsonToGraph';
 import {
@@ -39,7 +38,6 @@ function GraphCanvas() {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [currentLayout, setCurrentLayout] = useState('TB');
-  const [groupByKey, setGroupByKey] = useState('none'); // 'none' | 'dept' | 'category' | 'type'
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [theme, setTheme] = useState('dark'); // 'dark' | 'light'
@@ -65,158 +63,172 @@ function GraphCanvas() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
-  // Load graph data into canvas
-  const loadGraphData = useCallback((parsedData, layoutMode = 'TB') => {
-    const { nodes: parsedNodes, edges: parsedEdges } = parsedData;
+  // Helper to apply layout to nodes & edges
+  const applyLayout = useCallback(
+    (nodesToLayout, edgesToLayout, layoutType) => {
+      let layoutedNodes = [];
+      if (layoutType === 'TB' || layoutType === 'LR') {
+        layoutedNodes = getDagreLayout(nodesToLayout, edgesToLayout, layoutType);
+      } else if (layoutType === 'circular') {
+        layoutedNodes = getCircularLayout(nodesToLayout);
+      } else if (layoutType === 'grid') {
+        layoutedNodes = getGridLayout(nodesToLayout);
+      } else if (layoutType === 'organic') {
+        layoutedNodes = getOrganicLayout(nodesToLayout, edgesToLayout);
+      } else {
+        layoutedNodes = getDagreLayout(nodesToLayout, edgesToLayout, 'TB');
+      }
+      return layoutedNodes;
+    },
+    []
+  );
 
-    let layouted;
-    if (layoutMode === 'circular') {
-      layouted = getCircularLayout(parsedNodes, parsedEdges);
-    } else if (layoutMode === 'grid') {
-      layouted = getGridLayout(parsedNodes, parsedEdges);
-    } else if (layoutMode === 'organic') {
-      layouted = getOrganicLayout(parsedNodes, parsedEdges);
-    } else {
-      layouted = getDagreLayout(parsedNodes, parsedEdges, layoutMode);
+  const loadGraphData = useCallback(
+    (graphData, layoutType = currentLayout) => {
+      if (!graphData || !graphData.nodes) return;
+      const layoutedNodes = applyLayout(graphData.nodes, graphData.edges || [], layoutType);
+      setNodes(layoutedNodes);
+      setEdges(graphData.edges || []);
+      setSelectedNodeId(null);
+      setTimeout(() => {
+        fitView({ padding: 0.2, duration: 400 });
+      }, 50);
+    },
+    [applyLayout, currentLayout, setNodes, setEdges, fitView]
+  );
+
+  // Handle Manual Layout Switch
+  const handleLayoutChange = (newLayout) => {
+    setCurrentLayout(newLayout);
+    if (nodes.length > 0) {
+      const layouted = applyLayout(nodes, edges, newLayout);
+      setNodes(layouted);
+      setTimeout(() => {
+        fitView({ padding: 0.2, duration: 400 });
+      }, 50);
     }
-
-    setNodes(layouted.nodes);
-    setEdges(layouted.edges);
-
-    setTimeout(() => {
-      fitView({ padding: 0.2, duration: 400 });
-    }, 50);
-  }, [setNodes, setEdges, fitView]);
-
-  // Handle Layout Switch
-  const handleLayoutChange = (newLayoutMode) => {
-    setCurrentLayout(newLayoutMode);
-    if (nodes.length === 0) return;
-
-    let layouted;
-    if (newLayoutMode === 'circular') {
-      layouted = getCircularLayout(nodes, edges);
-    } else if (newLayoutMode === 'grid') {
-      layouted = getGridLayout(nodes, edges);
-    } else if (newLayoutMode === 'organic') {
-      layouted = getOrganicLayout(nodes, edges);
-    } else {
-      layouted = getDagreLayout(nodes, edges, newLayoutMode);
-    }
-
-    setNodes(layouted.nodes);
-    setTimeout(() => {
-      fitView({ padding: 0.2, duration: 400 });
-    }, 50);
   };
 
-  // Handle Connecting 2 nodes on canvas
+  // Connect two nodes on canvas
   const onConnect = useCallback(
-    (params) =>
-      setEdges((eds) =>
-        addEdge(
-          {
-            ...params,
-            animated: true,
-            style: { stroke: '#3b82f6', strokeWidth: 2 },
-            labelStyle: { fill: theme === 'light' ? '#0f172a' : '#f8fafc', fontWeight: 600, fontSize: '11px' },
-            labelBgStyle: { fill: theme === 'light' ? '#ffffff' : '#0f172a', rx: 6, ry: 6 },
-            labelBgPadding: [6, 4],
-            markerEnd: { type: 'arrowclosed', color: '#3b82f6' }
-          },
-          eds
-        )
-      ),
+    (params) => {
+      const newEdge = {
+        ...params,
+        id: `e-${params.source}-${params.target}-${Date.now()}`,
+        animated: true,
+        style: { stroke: theme === 'light' ? '#94a3b8' : '#475569', strokeWidth: 2 },
+        labelStyle: { fill: theme === 'light' ? '#0f172a' : '#f8fafc', fontWeight: 600, fontSize: '11px' },
+        labelBgStyle: { fill: theme === 'light' ? '#ffffff' : '#0f172a', rx: 6, ry: 6 },
+        labelBgPadding: [6, 4]
+      };
+      setEdges((eds) => addEdge(newEdge, eds));
+    },
     [setEdges, theme]
   );
 
-  // Handle Node Click -> Select Node
-  const onNodeClick = useCallback((event, node) => {
+  const onNodeClick = useCallback((_, node) => {
     setSelectedNodeId(node.id);
   }, []);
 
-  // Handle Canvas Click -> Deselect Node
   const onPaneClick = useCallback(() => {
     setSelectedNodeId(null);
   }, []);
 
-  // Focus camera on node
-  const handleFocusNode = useCallback((nodeId) => {
-    const targetNode = nodes.find((n) => n.id === nodeId);
-    if (targetNode) {
-      setSelectedNodeId(nodeId);
-      const x = targetNode.position.x + 110;
-      const y = targetNode.position.y + 45;
-      setCenter(x, y, { zoom: 1.3, duration: 800 });
-    }
-  }, [nodes, setCenter]);
-
-  // Update Node Property
-  const handleUpdateNode = useCallback((nodeId, updatedFields) => {
-    setNodes((nds) =>
-      nds.map((n) => {
-        if (n.id === nodeId) {
-          return {
-            ...n,
-            data: {
-              ...n.data,
-              ...updatedFields
-            }
-          };
-        }
-        return n;
-      })
-    );
-  }, [setNodes]);
-
-  // Delete Node
-  const handleDeleteNode = useCallback((nodeId) => {
-    setNodes((nds) => nds.filter((n) => n.id !== nodeId));
-    setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
-    setSelectedNodeId(null);
-  }, [setNodes, setEdges]);
-
-  // Add Custom Node
-  const handleAddNode = useCallback(({ label, subtitle, type, bgColor, icon, shape, connectToNodeId }) => {
-    const newId = `node_${Date.now()}`;
-    const newNode = {
-      id: newId,
-      type: 'customNode',
-      position: { x: 250 + Math.random() * 50, y: 200 + Math.random() * 50 },
-      data: {
-        label,
-        subtitle,
-        type,
-        bgColor,
-        icon,
-        shape: shape || 'rectangle',
-        status: 'active',
-        details: { created: new Date().toLocaleTimeString() }
+  // Center view on a specific node
+  const handleFocusNode = useCallback(
+    (nodeId) => {
+      const node = nodes.find((n) => n.id === nodeId);
+      if (node) {
+        setSelectedNodeId(nodeId);
+        setCenter(node.position.x + 100, node.position.y + 40, {
+          zoom: 1.2,
+          duration: 500,
+        });
       }
-    };
+    },
+    [nodes, setCenter]
+  );
 
-    setNodes((nds) => [...nds, newNode]);
+  // Update a single node property
+  const handleUpdateNode = useCallback(
+    (nodeId, updatedFields) => {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id === nodeId) {
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                ...updatedFields,
+              },
+            };
+          }
+          return n;
+        })
+      );
+    },
+    [setNodes]
+  );
 
-    if (connectToNodeId) {
-      const newEdge = {
-        id: `e_${connectToNodeId}_${newId}`,
-        source: connectToNodeId,
-        target: newId,
-        label: 'Bağlantılı',
-        animated: true,
-        style: { stroke: bgColor || '#3b82f6', strokeWidth: 2 },
-        labelStyle: { fill: theme === 'light' ? '#0f172a' : '#f8fafc', fontWeight: 600, fontSize: '11px' },
-        labelBgStyle: { fill: theme === 'light' ? '#ffffff' : '#0f172a', rx: 6, ry: 6 },
-        labelBgPadding: [6, 4],
-        markerEnd: { type: 'arrowclosed', color: bgColor || '#3b82f6' }
+  // Delete a node and its associated edges
+  const handleDeleteNode = useCallback(
+    (nodeId) => {
+      setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+      setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
+      setSelectedNodeId(null);
+    },
+    [setNodes, setEdges]
+  );
+
+  // Add a new node manually
+  const handleAddNode = useCallback(
+    (newNodeData) => {
+      const newId = `node_${Date.now()}`;
+      const newNode = {
+        id: newId,
+        type: 'customNode',
+        position: {
+          x: Math.random() * 300 + 100,
+          y: Math.random() * 300 + 100,
+        },
+        data: {
+          label: newNodeData.label,
+          subtitle: newNodeData.subtitle,
+          type: newNodeData.type,
+          bgColor: newNodeData.bgColor,
+          icon: newNodeData.icon,
+          shape: newNodeData.shape || 'rectangle',
+          status: 'active',
+          theme,
+          details: {
+            createdManually: true,
+            createdAt: new Date().toLocaleTimeString(),
+          },
+        },
       };
-      setEdges((eds) => [...eds, newEdge]);
-    }
 
-    setTimeout(() => {
-      handleFocusNode(newId);
-    }, 100);
-  }, [setNodes, setEdges, handleFocusNode, theme]);
+      setNodes((nds) => [...nds, newNode]);
+
+      if (newNodeData.connectToNodeId) {
+        const newEdge = {
+          id: `e_${newNodeData.connectToNodeId}_${newId}`,
+          source: newNodeData.connectToNodeId,
+          target: newId,
+          animated: true,
+          style: { stroke: theme === 'light' ? '#94a3b8' : '#475569', strokeWidth: 2 },
+          labelStyle: { fill: theme === 'light' ? '#0f172a' : '#f8fafc', fontWeight: 600, fontSize: '11px' },
+          labelBgStyle: { fill: theme === 'light' ? '#ffffff' : '#0f172a', rx: 6, ry: 6 },
+          labelBgPadding: [6, 4]
+        };
+        setEdges((eds) => [...eds, newEdge]);
+      }
+
+      setTimeout(() => {
+        handleFocusNode(newId);
+      }, 100);
+    },
+    [setNodes, setEdges, handleFocusNode, theme]
+  );
 
   // Apply JSON Input with optional column-matching key
   const handleApplyJson = (rawJson, matchKey = '') => {
@@ -306,8 +318,6 @@ function GraphCanvas() {
       <HeaderBar
         currentLayout={currentLayout}
         onLayoutChange={handleLayoutChange}
-        groupByKey={groupByKey}
-        onGroupByKeyChange={setGroupByKey}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onOpenJsonEditor={() => setIsJsonModalOpen(true)}
@@ -347,73 +357,58 @@ function GraphCanvas() {
             labelBgPadding: [6, 4]
           }}
         >
-          <ClusterGroupOverlay nodes={processedNodes} groupByKey={groupByKey} theme={theme} />
           <Background
             variant={BackgroundVariant.Dots}
             gap={24}
             size={1.5}
             color={theme === 'light' ? '#cbd5e1' : '#334155'}
           />
-          <Controls position="bottom-left" showInteractive={false} />
-          {nodes.length > 0 && (
-            <MiniMap
-              position="bottom-right"
-              nodeColor={(n) => n.data?.bgColor || '#3b82f6'}
-              maskColor={theme === 'light' ? 'rgba(241, 245, 249, 0.7)' : 'rgba(15, 23, 42, 0.7)'}
-              style={{ width: 140, height: 90 }}
-            />
-          )}
+          <Controls />
+          <MiniMap
+            nodeColor={(node) => node.data?.bgColor || (theme === 'light' ? '#64748b' : '#3b82f6')}
+            maskColor={theme === 'light' ? 'rgba(241, 245, 249, 0.7)' : 'rgba(11, 15, 25, 0.7)'}
+            ariaLabel="Mini Map"
+          />
         </ReactFlow>
 
-        {/* Empty Canvas Welcome Overlay */}
+        {/* Empty Canvas Overlay State */}
         {nodes.length === 0 && (
-          <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center p-4">
-            <div className={`pointer-events-auto max-w-md w-full glass-modal p-8 rounded-3xl border text-center shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-300 ${
-              theme === 'light' ? 'bg-white/95 border-slate-200 text-slate-900' : 'bg-slate-950/90 border-slate-800 text-slate-100'
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-6 text-center z-10 animate-in fade-in duration-300">
+            <div className={`p-8 rounded-3xl border shadow-2xl max-w-md pointer-events-auto backdrop-blur-md ${
+              theme === 'light' ? 'bg-white/90 border-slate-200 text-slate-800' : 'glass-modal border-slate-800 text-slate-100'
             }`}>
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center mx-auto shadow-xl shadow-blue-500/20">
+              <div className="w-16 h-16 rounded-2xl bg-blue-600/20 text-blue-500 flex items-center justify-center mx-auto mb-4 border border-blue-500/30 shadow-lg shadow-blue-500/10">
                 <FolderOpen size={32} />
               </div>
 
-              <div>
-                <h2 className="text-xl font-bold m-0">Graf Tuvali Boş</h2>
-                <p className={`text-xs mt-1.5 leading-relaxed ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
-                  Başlamak için bilgisayarınızdan bir JSON dosyası yükleyin, editörden JSON kodunuzu yapıştırın veya manuel düğüm ekleyin.
-                </p>
-              </div>
+              <h2 className="text-xl font-bold mb-2">Graf Tuvaliniz Boş</h2>
+              <p className={`text-xs mb-6 leading-relaxed ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
+                Görselleştirmek için JSON dosyanızı yükleyebilir, hazır şablonlarımızdan seçebilir veya manuel olarak yeni düğümler ekleyebilirsiniz.
+              </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-all shadow-md shadow-indigo-600/20 flex items-center justify-center gap-2"
-                >
-                  <Upload size={15} /> Dosya Yükle (.json)
-                </button>
-
+              <div className="flex flex-col gap-2.5">
                 <button
                   onClick={() => setIsJsonModalOpen(true)}
-                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-all shadow-md shadow-blue-600/20 flex items-center justify-center gap-2"
+                  className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2"
                 >
-                  <Code size={15} /> JSON Editörünü Aç
+                  <Code size={15} /> JSON Editör veya Şablon Aç
                 </button>
 
                 <button
-                  onClick={() => handleApplyJson(PRESETS[0].data)}
-                  className={`px-4 py-2.5 rounded-xl border text-xs font-medium transition-all flex items-center justify-center gap-2 ${
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`w-full py-2.5 px-4 rounded-xl border text-xs font-semibold transition-all flex items-center justify-center gap-2 ${
                     theme === 'light'
                       ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
                       : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
                   }`}
                 >
-                  <Sparkles size={15} className="text-amber-500" /> Örnek Veri Yükle
+                  <Upload size={15} className="text-indigo-400" /> Bilgisayardan JSON Yükle
                 </button>
 
                 <button
                   onClick={() => setIsAddNodeModalOpen(true)}
-                  className={`px-4 py-2.5 rounded-xl border text-xs font-medium transition-all flex items-center justify-center gap-2 ${
-                    theme === 'light'
-                      ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
-                      : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
+                  className={`w-full py-2 rounded-xl text-xs font-medium transition-all flex items-center justify-center gap-2 ${
+                    theme === 'light' ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:bg-slate-800'
                   }`}
                 >
                   <Plus size={15} /> Düğüm Ekle
