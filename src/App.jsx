@@ -16,6 +16,7 @@ import { Upload, Code, Plus, Sparkles, FolderOpen } from 'lucide-react';
 import CustomNode from './components/CustomNode';
 import HeaderBar from './components/HeaderBar';
 import NodeDetailDrawer from './components/NodeDetailDrawer';
+import EdgeDetailDrawer from './components/EdgeDetailDrawer';
 import JsonEditorModal from './components/JsonEditorModal';
 import AddNodeModal from './components/AddNodeModal';
 import DiagramModal from './components/DiagramModal';
@@ -39,6 +40,7 @@ function GraphCanvas() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [currentLayout, setCurrentLayout] = useState('TB');
   const [selectedNodeId, setSelectedNodeId] = useState(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [theme, setTheme] = useState('dark'); // 'dark' | 'light'
 
@@ -128,11 +130,49 @@ function GraphCanvas() {
 
   const onNodeClick = useCallback((_, node) => {
     setSelectedNodeId(node.id);
+    setSelectedEdgeId(null);
+  }, []);
+
+  const onEdgeClick = useCallback((_, edge) => {
+    setSelectedEdgeId(edge.id);
+    setSelectedNodeId(null);
   }, []);
 
   const onPaneClick = useCallback(() => {
     setSelectedNodeId(null);
+    setSelectedEdgeId(null);
   }, []);
+
+  // Update a single edge property
+  const handleUpdateEdge = useCallback(
+    (edgeId, updatedFields) => {
+      setEdges((eds) =>
+        eds.map((e) => {
+          if (e.id === edgeId) {
+            return {
+              ...e,
+              ...updatedFields,
+              style: {
+                ...(e.style || {}),
+                ...(updatedFields.style || {}),
+              },
+            };
+          }
+          return e;
+        })
+      );
+    },
+    [setEdges]
+  );
+
+  // Delete a single edge
+  const handleDeleteEdge = useCallback(
+    (edgeId) => {
+      setEdges((eds) => eds.filter((e) => e.id !== edgeId));
+      setSelectedEdgeId(null);
+    },
+    [setEdges]
+  );
 
   // Center view on a specific node
   const handleFocusNode = useCallback(
@@ -297,6 +337,7 @@ function GraphCanvas() {
   }, [nodes, searchQuery, theme]);
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
+  const selectedEdge = edges.find((e) => e.id === selectedEdgeId);
 
   return (
     <div className={`w-full h-full flex flex-col relative overflow-hidden transition-colors ${
@@ -343,6 +384,7 @@ function GraphCanvas() {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeClick={onNodeClick}
+          onEdgeClick={onEdgeClick}
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           proOptions={{ hideAttribution: true }}
@@ -427,6 +469,16 @@ function GraphCanvas() {
           onUpdateNode={handleUpdateNode}
           onDeleteNode={handleDeleteNode}
           onFocusNode={handleFocusNode}
+          theme={theme}
+        />
+
+        {/* Selected Edge Details & Style Drawer */}
+        <EdgeDetailDrawer
+          selectedEdge={selectedEdge}
+          allNodes={nodes}
+          onClose={() => setSelectedEdgeId(null)}
+          onUpdateEdge={handleUpdateEdge}
+          onDeleteEdge={handleDeleteEdge}
           theme={theme}
         />
       </div>
