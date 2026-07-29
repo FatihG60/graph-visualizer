@@ -16,7 +16,6 @@ import { Upload, Code, Plus, Sparkles, FolderOpen } from 'lucide-react';
 import CustomNode from './components/CustomNode';
 import HeaderBar from './components/HeaderBar';
 import NodeDetailDrawer from './components/NodeDetailDrawer';
-import EdgeDetailDrawer from './components/EdgeDetailDrawer';
 import JsonEditorModal from './components/JsonEditorModal';
 import AddNodeModal from './components/AddNodeModal';
 import DiagramModal from './components/DiagramModal';
@@ -40,7 +39,6 @@ function GraphCanvas() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [currentLayout, setCurrentLayout] = useState('TB');
   const [selectedNodeId, setSelectedNodeId] = useState(null);
-  const [selectedEdgeId, setSelectedEdgeId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [theme, setTheme] = useState('dark'); // 'dark' | 'light'
 
@@ -68,29 +66,36 @@ function GraphCanvas() {
   // Helper to apply layout to nodes & edges
   const applyLayout = useCallback(
     (nodesToLayout, edgesToLayout, layoutType) => {
-      let layoutedNodes = [];
+      const safeNodes = Array.isArray(nodesToLayout) ? nodesToLayout : [];
+      const safeEdges = Array.isArray(edgesToLayout) ? edgesToLayout : [];
+      let res = { nodes: safeNodes, edges: safeEdges };
       if (layoutType === 'TB' || layoutType === 'LR') {
-        layoutedNodes = getDagreLayout(nodesToLayout, edgesToLayout, layoutType);
+        res = getDagreLayout(safeNodes, safeEdges, layoutType);
       } else if (layoutType === 'circular') {
-        layoutedNodes = getCircularLayout(nodesToLayout);
+        res = getCircularLayout(safeNodes, safeEdges);
       } else if (layoutType === 'grid') {
-        layoutedNodes = getGridLayout(nodesToLayout);
+        res = getGridLayout(safeNodes, safeEdges);
       } else if (layoutType === 'organic') {
-        layoutedNodes = getOrganicLayout(nodesToLayout, edgesToLayout);
+        res = getOrganicLayout(safeNodes, safeEdges);
       } else {
-        layoutedNodes = getDagreLayout(nodesToLayout, edgesToLayout, 'TB');
+        res = getDagreLayout(safeNodes, safeEdges, 'TB');
       }
-      return layoutedNodes;
+      return Array.isArray(res?.nodes) ? res.nodes : safeNodes;
     },
     []
   );
 
   const loadGraphData = useCallback(
     (graphData, layoutType = currentLayout) => {
-      if (!graphData || !graphData.nodes) return;
-      const layoutedNodes = applyLayout(graphData.nodes, graphData.edges || [], layoutType);
-      setNodes(layoutedNodes);
-      setEdges(graphData.edges || []);
+      if (!graphData || !Array.isArray(graphData.nodes)) {
+        setNodes([]);
+        setEdges([]);
+        return;
+      }
+      const safeEdges = Array.isArray(graphData.edges) ? graphData.edges : [];
+      const layoutedNodes = applyLayout(graphData.nodes, safeEdges, layoutType);
+      setNodes(Array.isArray(layoutedNodes) ? layoutedNodes : []);
+      setEdges(safeEdges);
       setSelectedNodeId(null);
       setTimeout(() => {
         fitView({ padding: 0.2, duration: 400 });
@@ -102,8 +107,10 @@ function GraphCanvas() {
   // Handle Manual Layout Switch
   const handleLayoutChange = (newLayout) => {
     setCurrentLayout(newLayout);
-    if (nodes.length > 0) {
-      const layouted = applyLayout(nodes, edges, newLayout);
+    const safeNodes = Array.isArray(nodes) ? nodes : [];
+    const safeEdges = Array.isArray(edges) ? edges : [];
+    if (safeNodes.length > 0) {
+      const layouted = applyLayout(safeNodes, safeEdges, newLayout);
       setNodes(layouted);
       setTimeout(() => {
         fitView({ padding: 0.2, duration: 400 });
@@ -130,54 +137,16 @@ function GraphCanvas() {
 
   const onNodeClick = useCallback((_, node) => {
     setSelectedNodeId(node.id);
-    setSelectedEdgeId(null);
-  }, []);
-
-  const onEdgeClick = useCallback((_, edge) => {
-    setSelectedEdgeId(edge.id);
-    setSelectedNodeId(null);
   }, []);
 
   const onPaneClick = useCallback(() => {
     setSelectedNodeId(null);
-    setSelectedEdgeId(null);
   }, []);
-
-  // Update a single edge property
-  const handleUpdateEdge = useCallback(
-    (edgeId, updatedFields) => {
-      setEdges((eds) =>
-        eds.map((e) => {
-          if (e.id === edgeId) {
-            return {
-              ...e,
-              ...updatedFields,
-              style: {
-                ...(e.style || {}),
-                ...(updatedFields.style || {}),
-              },
-            };
-          }
-          return e;
-        })
-      );
-    },
-    [setEdges]
-  );
-
-  // Delete a single edge
-  const handleDeleteEdge = useCallback(
-    (edgeId) => {
-      setEdges((eds) => eds.filter((e) => e.id !== edgeId));
-      setSelectedEdgeId(null);
-    },
-    [setEdges]
-  );
 
   // Center view on a specific node
   const handleFocusNode = useCallback(
     (nodeId) => {
-      const node = nodes.find((n) => n.id === nodeId);
+      const node = (Array.isArray(nodes) ? nodes : []).find((n) => n.id === nodeId);
       if (node) {
         setSelectedNodeId(nodeId);
         setCenter(node.position.x + 100, node.position.y + 40, {
@@ -193,7 +162,7 @@ function GraphCanvas() {
   const handleUpdateNode = useCallback(
     (nodeId, updatedFields) => {
       setNodes((nds) =>
-        nds.map((n) => {
+        (Array.isArray(nds) ? nds : []).map((n) => {
           if (n.id === nodeId) {
             return {
               ...n,
@@ -213,8 +182,8 @@ function GraphCanvas() {
   // Delete a node and its associated edges
   const handleDeleteNode = useCallback(
     (nodeId) => {
-      setNodes((nds) => nds.filter((n) => n.id !== nodeId));
-      setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
+      setNodes((nds) => (Array.isArray(nds) ? nds : []).filter((n) => n.id !== nodeId));
+      setEdges((eds) => (Array.isArray(eds) ? eds : []).filter((e) => e.source !== nodeId && e.target !== nodeId));
       setSelectedNodeId(null);
     },
     [setNodes, setEdges]
@@ -247,7 +216,7 @@ function GraphCanvas() {
         },
       };
 
-      setNodes((nds) => [...nds, newNode]);
+      setNodes((nds) => [...(Array.isArray(nds) ? nds : []), newNode]);
 
       if (newNodeData.connectToNodeId) {
         const newEdge = {
@@ -260,7 +229,7 @@ function GraphCanvas() {
           labelBgStyle: { fill: theme === 'light' ? '#ffffff' : '#0f172a', rx: 6, ry: 6 },
           labelBgPadding: [6, 4]
         };
-        setEdges((eds) => [...eds, newEdge]);
+        setEdges((eds) => [...(Array.isArray(eds) ? eds : []), newEdge]);
       }
 
       setTimeout(() => {
@@ -292,15 +261,17 @@ function GraphCanvas() {
 
   // Export Handlers
   const handleExportJson = () => {
-    if (nodes.length === 0) {
+    const safeNodes = Array.isArray(nodes) ? nodes : [];
+    if (safeNodes.length === 0) {
       alert('İndirilecek düğüm bulunmuyor.');
       return;
     }
-    exportToJson(nodes, edges, `graf-verisi-${Date.now()}.json`);
+    exportToJson(safeNodes, edges, `graf-verisi-${Date.now()}.json`);
   };
 
   const handleExportPng = () => {
-    if (nodes.length === 0) {
+    const safeNodes = Array.isArray(nodes) ? nodes : [];
+    if (safeNodes.length === 0) {
       alert('İndirilecek graf bulunmuyor.');
       return;
     }
@@ -309,7 +280,8 @@ function GraphCanvas() {
   };
 
   const handleExportSvg = () => {
-    if (nodes.length === 0) {
+    const safeNodes = Array.isArray(nodes) ? nodes : [];
+    if (safeNodes.length === 0) {
       alert('İndirilecek graf bulunmuyor.');
       return;
     }
@@ -319,8 +291,9 @@ function GraphCanvas() {
 
   // Search Filter Highlights & Theme Injection
   const processedNodes = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    return nodes.map((n) => {
+    const safeNodes = Array.isArray(nodes) ? nodes : [];
+    const query = (searchQuery || '').trim().toLowerCase();
+    return safeNodes.map((n) => {
       const labelMatch = query && n.data?.label?.toLowerCase().includes(query);
       const subMatch = query && n.data?.subtitle?.toLowerCase().includes(query);
       const typeMatch = query && n.data?.type?.toLowerCase().includes(query);
@@ -336,8 +309,10 @@ function GraphCanvas() {
     });
   }, [nodes, searchQuery, theme]);
 
-  const selectedNode = nodes.find((n) => n.id === selectedNodeId);
-  const selectedEdge = edges.find((e) => e.id === selectedEdgeId);
+  const safeNodes = Array.isArray(nodes) ? nodes : [];
+  const safeEdges = Array.isArray(edges) ? edges : [];
+
+  const selectedNode = safeNodes.find((n) => n.id === selectedNodeId);
 
   return (
     <div className={`w-full h-full flex flex-col relative overflow-hidden transition-colors ${
@@ -371,20 +346,19 @@ function GraphCanvas() {
         onFileUpload={handleDirectFileUpload}
         theme={theme}
         onToggleTheme={handleToggleTheme}
-        nodesCount={nodes.length}
-        edgesCount={edges.length}
+        nodesCount={safeNodes.length}
+        edgesCount={safeEdges.length}
       />
 
       {/* Main Canvas Area */}
       <div className="flex-1 w-full h-full relative">
         <ReactFlow
           nodes={processedNodes}
-          edges={edges}
+          edges={safeEdges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeClick={onNodeClick}
-          onEdgeClick={onEdgeClick}
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           proOptions={{ hideAttribution: true }}
@@ -414,7 +388,7 @@ function GraphCanvas() {
         </ReactFlow>
 
         {/* Empty Canvas Overlay State */}
-        {nodes.length === 0 && (
+        {safeNodes.length === 0 && (
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-6 text-center z-10 animate-in fade-in duration-300">
             <div className={`p-8 rounded-3xl border shadow-2xl max-w-md pointer-events-auto backdrop-blur-md ${
               theme === 'light' ? 'bg-white/90 border-slate-200 text-slate-800' : 'glass-modal border-slate-800 text-slate-100'
@@ -463,22 +437,12 @@ function GraphCanvas() {
         {/* Selected Node Details Drawer */}
         <NodeDetailDrawer
           selectedNode={selectedNode}
-          allNodes={nodes}
-          allEdges={edges}
+          allNodes={safeNodes}
+          allEdges={safeEdges}
           onClose={() => setSelectedNodeId(null)}
           onUpdateNode={handleUpdateNode}
           onDeleteNode={handleDeleteNode}
           onFocusNode={handleFocusNode}
-          theme={theme}
-        />
-
-        {/* Selected Edge Details & Style Drawer */}
-        <EdgeDetailDrawer
-          selectedEdge={selectedEdge}
-          allNodes={nodes}
-          onClose={() => setSelectedEdgeId(null)}
-          onUpdateEdge={handleUpdateEdge}
-          onDeleteEdge={handleDeleteEdge}
           theme={theme}
         />
       </div>
@@ -494,7 +458,7 @@ function GraphCanvas() {
       <AddNodeModal
         isOpen={isAddNodeModalOpen}
         onClose={() => setIsAddNodeModalOpen(false)}
-        existingNodes={nodes}
+        existingNodes={safeNodes}
         onAddNode={handleAddNode}
         theme={theme}
       />
@@ -502,8 +466,8 @@ function GraphCanvas() {
       <DiagramModal
         isOpen={isDiagramModalOpen}
         onClose={() => setIsDiagramModalOpen(false)}
-        nodes={nodes}
-        edges={edges}
+        nodes={safeNodes}
+        edges={safeEdges}
         theme={theme}
       />
     </div>
