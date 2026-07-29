@@ -19,6 +19,7 @@ import NodeDetailDrawer from './components/NodeDetailDrawer';
 import JsonEditorModal from './components/JsonEditorModal';
 import AddNodeModal from './components/AddNodeModal';
 import DiagramModal from './components/DiagramModal';
+import ClusterGroupOverlay from './components/ClusterGroupOverlay';
 
 import { parseJsonToGraph } from './utils/jsonToGraph';
 import {
@@ -38,6 +39,7 @@ function GraphCanvas() {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [currentLayout, setCurrentLayout] = useState('TB');
+  const [groupByKey, setGroupByKey] = useState('none'); // 'none' | 'dept' | 'category' | 'type'
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [theme, setTheme] = useState('dark'); // 'dark' | 'light'
@@ -304,6 +306,8 @@ function GraphCanvas() {
       <HeaderBar
         currentLayout={currentLayout}
         onLayoutChange={handleLayoutChange}
+        groupByKey={groupByKey}
+        onGroupByKeyChange={setGroupByKey}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onOpenJsonEditor={() => setIsJsonModalOpen(true)}
@@ -343,6 +347,7 @@ function GraphCanvas() {
             labelBgPadding: [6, 4]
           }}
         >
+          <ClusterGroupOverlay nodes={processedNodes} groupByKey={groupByKey} theme={theme} />
           <Background
             variant={BackgroundVariant.Dots}
             gap={24}

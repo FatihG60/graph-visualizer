@@ -16,7 +16,10 @@ import {
   Sun,
   Moon,
   Code2,
-  Layers
+  Layers,
+  FolderTree,
+  Building,
+  Tag
 } from 'lucide-react';
 
 const LAYOUT_OPTIONS = [
@@ -27,9 +30,18 @@ const LAYOUT_OPTIONS = [
   { id: 'organic', label: 'Organik (Force)', icon: Network },
 ];
 
+const GROUP_OPTIONS = [
+  { id: 'none', label: 'Gruplama Yok', icon: FolderTree },
+  { id: 'dept', label: 'Departman (dept)', icon: Building },
+  { id: 'category', label: 'Kategori', icon: Layers },
+  { id: 'type', label: 'Tip (type)', icon: Tag },
+];
+
 const HeaderBar = ({
   currentLayout,
   onLayoutChange,
+  groupByKey,
+  onGroupByKeyChange,
   searchQuery,
   onSearchChange,
   onOpenJsonEditor,
@@ -105,10 +117,40 @@ const HeaderBar = ({
         })}
       </div>
 
+      {/* Cluster / Grouping Selector Dropdown */}
+      <div className={`hidden xl:flex items-center gap-1.5 px-2 py-1 rounded-xl border ${
+        isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-900/90 border-slate-800'
+      }`}>
+        <span className={`text-[11px] font-semibold uppercase tracking-wider px-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+          Grup Çerçevesi:
+        </span>
+        {GROUP_OPTIONS.map((grp) => {
+          const isActive = groupByKey === grp.id;
+          const IconComp = grp.icon;
+          return (
+            <button
+              key={grp.id}
+              onClick={() => onGroupByKeyChange(grp.id)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1 ${
+                isActive
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : isLight
+                  ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+              title={grp.label}
+            >
+              <IconComp size={13} />
+              <span>{grp.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Search & Actions */}
       <div className="flex items-center gap-2 xl:gap-3">
         {/* Real-time Search Box */}
-        <div className="relative w-32 xl:w-44">
+        <div className="relative w-32 xl:w-40">
           <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isLight ? 'text-slate-400' : 'text-slate-400'}`} />
           <input
             type="text"
@@ -182,7 +224,7 @@ const HeaderBar = ({
           title="Mermaid.js / PlantUML Diyagram Kodu Al"
           className="px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 border border-purple-500/30 text-xs font-medium transition-all flex items-center gap-1.5 shadow-sm"
         >
-          <Code2 size={14} /> Diyagram Kodu
+          <Code2 size={14} /> Diyagram
         </button>
 
         {/* Export JSON Button */}
