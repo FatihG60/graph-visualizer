@@ -38,7 +38,7 @@ export function exportToJson(nodes, edges, filename = 'graf-verisi.json') {
 }
 
 /**
- * Downloads the React Flow canvas viewport as a PNG image.
+ * Downloads the React Flow canvas viewport as a crisp, high-resolution PNG image.
  */
 export async function exportToPng(
   elementSelector = '.react-flow',
@@ -51,8 +51,11 @@ export async function exportToPng(
   try {
     const dataUrl = await toPng(node, {
       backgroundColor: bgColor,
+      pixelRatio: 2, // 2x HD Resolution to remove pixelation and blur
+      quality: 1.0,
+      cacheBust: true,
       filter: (domNode) => {
-        // Exclude controls and minimap from PNG snapshot if desired
+        // Exclude controls and minimap from PNG snapshot
         if (
           domNode.classList &&
           (domNode.classList.contains('react-flow__controls') ||

@@ -167,6 +167,12 @@ body.light-theme .react-flow__edge-textbg {
   background: #475569;
 }
 
+/* Fix PNG Export Blur by disabling backdrop-filter blur inside canvas viewport */
+.react-flow__viewport * {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
 /* Glassmorphism Classes */
 .glass-panel {
   background: rgba(30, 41, 59, 0.85);
