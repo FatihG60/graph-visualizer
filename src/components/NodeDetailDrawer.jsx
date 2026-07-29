@@ -169,44 +169,63 @@ const NodeDetailDrawer = ({
       {/* Tab Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* TAB 1: DATA DETAILS */}
-        {activeTab === 'data' && (
-          <div className="space-y-4">
-            {/* Key Value Metadata Table */}
-            <div>
-              <h4 className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                Özellikler & Metadata
-              </h4>
-              <div className={`rounded-xl border overflow-hidden divide-y ${
-                isLight ? 'bg-slate-50 border-slate-200 divide-slate-200' : 'bg-slate-900/80 border-slate-800 divide-slate-800'
-              }`}>
-                {Object.keys(details).length > 0 ? (
-                  Object.entries(details).map(([key, val]) => (
-                    <div key={key} className="px-3.5 py-2.5 flex items-start justify-between gap-3 text-xs">
-                      <span className={`font-mono shrink-0 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>{key}:</span>
-                      <span className={`font-medium text-right break-all ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
-                        {typeof val === 'object' ? JSON.stringify(val) : String(val)}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="p-4 text-center text-xs text-slate-500">Özel veri bulunmuyor.</div>
-                )}
+        {activeTab === 'data' && (() => {
+          const IGNORED_SYSTEM_KEYS = ['icon', 'bgcolor', 'bg_color', 'status', 'shape', 'ishighlighted', 'theme'];
+          
+          const cleanDataObject = (obj) => {
+            if (!obj || typeof obj !== 'object') return obj;
+            if (Array.isArray(obj)) return obj.map(cleanDataObject);
+            const result = {};
+            Object.entries(obj).forEach(([key, val]) => {
+              if (!IGNORED_SYSTEM_KEYS.includes(key.toLowerCase())) {
+                result[key] = typeof val === 'object' && val !== null ? cleanDataObject(val) : val;
+              }
+            });
+            return result;
+          };
+
+          const filteredData = cleanDataObject(details || nodeData.rawJson || {});
+          const hasDataKeys = Object.keys(filteredData).length > 0;
+
+          return (
+            <div className="space-y-4">
+              {/* Key Value Metadata Table */}
+              <div>
+                <h4 className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  Özellikler & Metadata
+                </h4>
+                <div className={`rounded-xl border overflow-hidden divide-y ${
+                  isLight ? 'bg-slate-50 border-slate-200 divide-slate-200' : 'bg-slate-900/80 border-slate-800 divide-slate-800'
+                }`}>
+                  {hasDataKeys ? (
+                    Object.entries(filteredData).map(([key, val]) => (
+                      <div key={key} className="px-3.5 py-2.5 flex items-start justify-between gap-3 text-xs">
+                        <span className={`font-mono shrink-0 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>{key}:</span>
+                        <span className={`font-medium text-right break-all ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
+                          {typeof val === 'object' ? JSON.stringify(val) : String(val)}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-4 text-center text-xs text-slate-500">Özel veri bulunmuyor.</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Raw JSON Code Block */}
+              <div>
+                <h4 className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  Ham JSON Çıktısı
+                </h4>
+                <pre className={`p-3 rounded-xl border text-[11px] font-mono overflow-x-auto ${
+                  isLight ? 'bg-slate-100 border-slate-200 text-slate-800' : 'bg-slate-950 border-slate-800 text-emerald-400'
+                }`}>
+                  {JSON.stringify(filteredData, null, 2)}
+                </pre>
               </div>
             </div>
-
-            {/* Raw JSON Code Block */}
-            <div>
-              <h4 className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                Ham JSON Çıktısı
-              </h4>
-              <pre className={`p-3 rounded-xl border text-[11px] font-mono overflow-x-auto ${
-                isLight ? 'bg-slate-100 border-slate-200 text-slate-800' : 'bg-slate-950 border-slate-800 text-emerald-400'
-              }`}>
-                {JSON.stringify(nodeData.rawJson || details, null, 2)}
-              </pre>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* TAB 2: CONNECTIONS & NAVIGATION */}
         {activeTab === 'connections' && (
