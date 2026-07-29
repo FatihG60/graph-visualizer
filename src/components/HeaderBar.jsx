@@ -65,7 +65,7 @@ const HeaderBar = ({
           <h1 className={`text-base font-extrabold tracking-tight flex items-center gap-1.5 m-0 p-0 leading-tight ${
             isLight ? 'text-slate-900' : 'text-slate-100'
           }`}>
-            Nexus<span className="text-blue-500">Graph</span>
+            Graph
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block shadow-sm shadow-emerald-400/80 ml-0.5"></span>
           </h1>
           <p className={`text-[11px] font-normal m-0 p-0 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
