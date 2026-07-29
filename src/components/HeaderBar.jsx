@@ -58,14 +58,15 @@ const HeaderBar = ({
     }`}>
       {/* Brand Logo & Title */}
       <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-lg shadow-blue-500/20">
+        <div className="p-2.5 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 border border-white/20">
           <GitGraph size={22} />
         </div>
         <div>
-          <h1 className={`text-base font-bold tracking-tight flex items-center gap-2 m-0 p-0 leading-tight ${
+          <h1 className={`text-base font-extrabold tracking-tight flex items-center gap-1.5 m-0 p-0 leading-tight ${
             isLight ? 'text-slate-900' : 'text-slate-100'
           }`}>
-            GrafGörsel
+            Nexus<span className="text-blue-500">Graph</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block shadow-sm shadow-emerald-400/80 ml-0.5"></span>
           </h1>
           <p className={`text-[11px] font-normal m-0 p-0 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
             {nodesCount} Düğüm • {edgesCount} İlişki Bağlantısı
