@@ -49,6 +49,7 @@ const NodeDetailDrawer = ({
   theme = 'dark'
 }) => {
   const [activeTab, setActiveTab] = useState('data'); // 'data' | 'connections' | 'style'
+  const [iconSearch, setIconSearch] = useState('');
 
   if (!selectedNode) return null;
 
@@ -433,15 +434,30 @@ const NodeDetailDrawer = ({
               </div>
             </div>
 
-            {/* Icon Picker Grid */}
+            {/* Icon Picker Grid with Search */}
             <div>
-              <label className={`block text-xs font-medium mb-2 flex items-center gap-1.5 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
-                <Sparkles size={14} className="text-amber-500" /> İkon Seçimi
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className={`text-xs font-medium flex items-center gap-1.5 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                  <Sparkles size={14} className="text-amber-500" /> İkon Seçimi ({ICON_LIST.length})
+                </label>
+              </div>
+              <input
+                type="text"
+                placeholder="İkonlarda ara... (örn: db, user, server, code)"
+                value={iconSearch}
+                onChange={(e) => setIconSearch(e.target.value)}
+                className={`w-full px-3 py-1.5 mb-2 border rounded-lg text-xs focus:outline-none focus:border-blue-500 ${
+                  isLight ? 'bg-slate-100 border-slate-300 text-slate-900 placeholder-slate-400' : 'bg-slate-950 border-slate-800 text-white placeholder-slate-500'
+                }`}
+              />
               <div className={`grid grid-cols-5 gap-2 max-h-56 overflow-y-auto p-2 rounded-xl border ${
                 isLight ? 'bg-slate-100 border-slate-300' : 'bg-slate-950 border-slate-800'
               }`}>
-                {ICON_LIST.map((item) => {
+                {ICON_LIST.filter((i) =>
+                  !iconSearch.trim() ||
+                  i.label.toLowerCase().includes(iconSearch.toLowerCase()) ||
+                  i.id.toLowerCase().includes(iconSearch.toLowerCase())
+                ).map((item) => {
                   const IconComp = item.icon;
                   const isSelected = icon === item.id;
                   return (
