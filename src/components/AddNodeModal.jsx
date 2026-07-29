@@ -211,7 +211,7 @@ const AddNodeModal = ({ isOpen, onClose, existingNodes, onAddNode, theme = 'dark
             <label className={`block text-xs font-medium mb-2 flex items-center gap-1.5 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
               <Sparkles size={14} className="text-amber-500" /> İkon Seçimi
             </label>
-            <div className={`grid grid-cols-6 gap-2 max-h-28 overflow-y-auto p-2 rounded-xl border ${
+            <div className={`grid grid-cols-6 gap-2 max-h-40 overflow-y-auto p-2 rounded-xl border ${
               isLight ? 'bg-slate-100 border-slate-300' : 'bg-slate-950 border-slate-800'
             }`}>
               {ICON_LIST.map((item) => {
