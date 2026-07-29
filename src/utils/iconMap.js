@@ -4,6 +4,7 @@ import {
   Database, Server, Cpu, Cloud, HardDrive, Terminal, Code, FileCode, Globe, Radio, Box, Share2, Wifi, Layers,
   Shield, Lock, Key, Router, Monitor, Laptop, Smartphone, Cable, Cast, DatabaseBackup, Gauge, Grid, KeyRound,
   LockKeyhole, Power, Printer, QrCode, RadioTower, Signal, WifiOff, Zap, ZapOff, Bot, Command, Hash, Wrench,
+  Settings,
 
   // Data & Documents & Files
   FileText, Folder, File, BarChart, PieChart, TrendingUp, Activity, Search, Filter, Archive, Book, Bookmark,
@@ -120,7 +121,7 @@ export const ICON_LIST = [
   { id: 'gift', label: 'Hediye (Gift)', icon: Gift },
   { id: 'scale', label: 'Hukuk / Adalet', icon: Scale },
 
-  // --- MEDYA, İLETİŞİM & DİĞER (100+) ---
+  // --- MEDYA, İLETİŞİM & DİĞER ---
   { id: 'zap', label: 'Tetikleyici (Zap)', icon: Zap },
   { id: 'zapoff', label: 'Devre Dışı Zap', icon: ZapOff },
   { id: 'settings', label: 'Ayar (Settings)', icon: Settings },
